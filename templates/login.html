@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded shadow p-6" x-data="loginForm()">
+  <h2 class="text-xl font-semibold mb-4">Connexion</h2>
+  <form @submit.prevent="submit" class="space-y-4">
+    <input type="email" x-model="email" placeholder="Email" class="w-full border rounded px-3 py-2" required />
+    <input type="password" x-model="password" placeholder="Mot de passe" class="w-full border rounded px-3 py-2" required />
+    <button class="bg-blue-600 text-white px-4 py-2 rounded w-full" :disabled="loading">
+      <span x-show="!loading">Se connecter</span>
+      <span x-show="loading">Connexion...</span>
+    </button>
+  </form>
+  <p class="text-sm text-gray-600 mt-4">Première utilisation ? <a href="/app/bootstrap" class="text-blue-600">Créer le compte admin</a></p>
+  <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+</div>
+
+<script>
+  function loginForm() {
+    return {
+      email: '',
+      password: '',
+      loading: false,
+      error: '',
+      async submit() {
+        this.loading = true;
+        this.error = '';
+        const body = new URLSearchParams();
+        body.append('username', this.email);
+        body.append('password', this.password);
+        const res = await fetch('/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        if (!res.ok) {
+          this.error = 'Identifiants invalides.';
+          this.loading = false;
+          return;
+        }
+        const data = await res.json();
+        auth.token = data.access_token;
+        window.location.href = '/app/dashboard';
+      }
+    }
+  }
+</script>
+{% endblock %}

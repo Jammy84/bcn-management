@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bombacar Nayo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .dark-mode body { background-color: #0b1220; color: #e2e8f0; }
+    .dark-mode .bg-white { background-color: #0f172a !important; color: #e2e8f0; }
+    .dark-mode .text-gray-500 { color: #94a3b8 !important; }
+    .dark-mode .text-gray-700 { color: #cbd5f5 !important; }
+    .dark-mode .text-gray-900 { color: #e2e8f0 !important; }
+    .dark-mode .border { border-color: #334155 !important; }
+    .dark-mode table { color: #e2e8f0; }
+    .dark-mode thead { color: #94a3b8; }
+    .dark-mode input, .dark-mode select, .dark-mode textarea {
+      background-color: #0b1220; color: #e2e8f0; border-color: #334155;
+    }
+  </style>
+  <script>
+    const auth = {
+      get token() { return localStorage.getItem('token'); },
+      set token(value) {
+        if (value) { localStorage.setItem('token', value); }
+        else { localStorage.removeItem('token'); }
+      },
+      headers() {
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        return headers;
+      }
+    };
+
+    async function apiFetch(url, options = {}) {
+      options.headers = { ...(options.headers || {}), ...auth.headers() };
+      const response = await fetch(url, options);
+      if (response.status === 401) {
+        auth.token = null;
+        window.location.href = '/app/login';
+      }
+      return response;
+    }
+
+    function requireAuth() {
+      if (!auth.token) window.location.href = '/app/login';
+    }
+
+    function logout() {
+      auth.token = null;
+      window.location.href = '/app/login';
+    }
+
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('auth', {
+        user: null,
+        role: null,
+        loading: true,
+        permissionsByRole: {
+          'Ingénieur IT': ['dashboard', 'users', 'vehicles', 'payments', 'reports', 'rates', 'manage_users', 'manage_vehicles', 'manage_rates'],
+          'DG': ['dashboard', 'reports'],
+          'Actionnaire': ['dashboard', 'reports'],
+          'Investisseur': ['dashboard', 'reports'],
+          'Chargé de finance': ['dashboard', 'payments', 'reports'],
+          'Contrôleur': ['dashboard', 'reports'],
+          'Secrétaire': ['dashboard', 'users'],
+          'Agent terrain': ['dashboard', 'payments'],
+          'Chargé de média & marketing': ['dashboard']
+        },
+        can(permission) {
+          if (!this.role) return false;
+          const allowed = this.permissionsByRole[this.role] || ['dashboard'];
+          return allowed.includes(permission);
+        },
+        async load() {
+          if (!auth.token) {
+            this.loading = false;
+            return;
+          }
+          const res = await apiFetch('/users/me');
+          if (res.ok) {
+            this.user = await res.json();
+            this.role = this.user.role;
+          }
+          this.loading = false;
+        }
+      });
+    });
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark-mode');
+    }
+  </script>
+</head>
+<body class="bg-gray-50 text-gray-900" x-data x-init="$store.auth.load()">
+  <div class="min-h-screen">
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img src="/static/images/logo.png" alt="Bombacar Nayo" class="h-8 w-auto" />
+          <h1 class="text-xl font-semibold">Bombacar Nayo</h1>
+        </div>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/app/dashboard" class="hover:text-blue-600" x-show="$store.auth.can('dashboard')">Dashboard</a>
+          <a href="/app/users" class="hover:text-blue-600" x-show="$store.auth.can('users')">Utilisateurs</a>
+          <a href="/app/vehicles" class="hover:text-blue-600" x-show="$store.auth.can('vehicles')">Véhicules</a>
+          <a href="/app/payments" class="hover:text-blue-600" x-show="$store.auth.can('payments')">Paiements</a>
+          <a href="/app/reports" class="hover:text-blue-600" x-show="$store.auth.can('reports')">Rapports</a>
+          <a href="/app/rates" class="hover:text-blue-600" x-show="$store.auth.can('rates')">Taux</a>
+          <button onclick="toggleDarkMode()" class="text-gray-700 bg-gray-100 rounded-full p-2 shadow" aria-label="Mode sombre" title="Mode sombre">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+              <path d="M21.752 15.002A9 9 0 1 1 9.002 2.252a7 7 0 1 0 12.75 12.75Z" />
+            </svg>
+          </button>
+          <button onclick="logout()" class="text-red-600">Déconnexion</button>
+        </nav>
+      </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-6 py-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

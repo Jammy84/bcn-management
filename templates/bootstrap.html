@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-lg mx-auto bg-white rounded shadow p-6" x-data="bootstrapForm()">
+  <h2 class="text-xl font-semibold mb-4">Créer le compte admin</h2>
+  <form @submit.prevent="submit" class="grid grid-cols-1 gap-3">
+    <input x-model="form.last_name" placeholder="Nom" class="border rounded px-3 py-2" required />
+    <input x-model="form.postnom" placeholder="Postnom" class="border rounded px-3 py-2" required />
+    <input x-model="form.first_name" placeholder="Prénom" class="border rounded px-3 py-2" required />
+    <input type="email" x-model="form.email" placeholder="Email" class="border rounded px-3 py-2" required />
+    <input x-model="form.phone" placeholder="Téléphone" class="border rounded px-3 py-2" required />
+    <input type="number" x-model.number="form.start_year" placeholder="Année début" class="border rounded px-3 py-2" required />
+    <select x-model="form.department" class="border rounded px-3 py-2" required>
+      <option value="">Département</option>
+      <option>Gouvernance</option>
+      <option>Finance</option>
+      <option>Technique</option>
+      <option>Ressources humaines</option>
+    </select>
+    <input type="password" x-model="form.password" placeholder="Mot de passe" class="border rounded px-3 py-2" required />
+    <button class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="loading">Créer</button>
+  </form>
+  <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+  <p class="text-sm text-green-700 mt-3" x-text="success"></p>
+</div>
+
+<script>
+  function bootstrapForm() {
+    return {
+      loading: false,
+      error: '',
+      success: '',
+      form: {
+        last_name: '',
+        postnom: '',
+        first_name: '',
+        email: '',
+        phone: '',
+        start_year: new Date().getFullYear(),
+        department: 'Technique',
+        role: 'Ingénieur IT',
+        password: ''
+      },
+      async submit() {
+        this.loading = true;
+        this.error = '';
+        this.success = '';
+        const res = await fetch('/users/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur lors de la création.';
+          this.loading = false;
+          return;
+        }
+        const data = await res.json();
+        this.success = `Compte créé. ID: ${data.user_id}. Tu peux te connecter.`;
+        this.loading = false;
+      }
+    }
+  }
+</script>
+{% endblock %}

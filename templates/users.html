@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="usersPage()" x-init="init(); requireAuth()">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">Utilisateurs</h2>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_users')">
+    <h3 class="font-semibold mb-3">Créer un utilisateur</h3>
+    <form @submit.prevent="createUser" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <input x-model="form.last_name" placeholder="Nom" class="border rounded px-3 py-2" required />
+      <input x-model="form.postnom" placeholder="Postnom" class="border rounded px-3 py-2" required />
+      <input x-model="form.first_name" placeholder="Prénom" class="border rounded px-3 py-2" required />
+      <input type="email" x-model="form.email" placeholder="Email" class="border rounded px-3 py-2" required />
+      <input x-model="form.phone" placeholder="Téléphone" class="border rounded px-3 py-2" required />
+      <input type="number" x-model.number="form.start_year" placeholder="Année début" class="border rounded px-3 py-2" required />
+      <select x-model="form.department" class="border rounded px-3 py-2" required>
+        <option value="">Département</option>
+        <option>Gouvernance</option>
+        <option>Finance</option>
+        <option>Technique</option>
+        <option>Ressources humaines</option>
+      </select>
+      <select x-model="form.role" class="border rounded px-3 py-2" required>
+        <option value="">Poste</option>
+        <option>DG</option>
+        <option>Actionnaire</option>
+        <option>Investisseur</option>
+        <option>Chargé de finance</option>
+        <option>Contrôleur</option>
+        <option>Ingénieur IT</option>
+        <option>Chargé de média & marketing</option>
+        <option>Secrétaire</option>
+        <option>Agent terrain</option>
+      </select>
+      <input type="password" x-model="form.password" placeholder="Mot de passe" class="border rounded px-3 py-2" required />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded md:col-span-3">Créer</button>
+    </form>
+    <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+    <p class="text-sm text-green-700 mt-3" x-text="success"></p>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_users')">
+    <h3 class="font-semibold mb-3">Modifier un utilisateur</h3>
+    <form @submit.prevent="updateUser" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <input x-model="updateForm.user_id" placeholder="User ID (AA-0A-0000)" class="border rounded px-3 py-2" required />
+      <input x-model="updateForm.last_name" placeholder="Nom" class="border rounded px-3 py-2" />
+      <input x-model="updateForm.first_name" placeholder="Prénom" class="border rounded px-3 py-2" />
+      <input type="email" x-model="updateForm.email" placeholder="Email" class="border rounded px-3 py-2" />
+      <input x-model="updateForm.phone" placeholder="Téléphone" class="border rounded px-3 py-2" />
+      <input type="password" x-model="updateForm.password" placeholder="Nouveau mot de passe" class="border rounded px-3 py-2" />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded md:col-span-3">Mettre à jour</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_users')">
+    <h3 class="font-semibold mb-3">Supprimer un utilisateur</h3>
+    <form @submit.prevent="deleteUser" class="flex gap-3">
+      <input x-model="deleteUserId" placeholder="User ID (AA-0A-0000)" class="border rounded px-3 py-2 flex-1" required />
+      <button class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded shadow p-4">
+    <h3 class="font-semibold mb-3">Liste</h3>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2">ID</th>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Département</th>
+          <th>Poste</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="u in users" :key="u.user_id">
+          <tr class="border-t">
+            <td class="py-2" x-text="u.user_id"></td>
+            <td x-text="u.last_name + ' ' + u.first_name"></td>
+            <td x-text="u.email"></td>
+            <td x-text="u.department"></td>
+            <td x-text="u.role"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function usersPage() {
+    return {
+      users: [],
+      error: '',
+      success: '',
+      form: { last_name: '', postnom: '', first_name: '', email: '', phone: '', start_year: new Date().getFullYear(), department: '', role: '', password: '' },
+      updateForm: { user_id: '', last_name: '', first_name: '', email: '', phone: '', password: '' },
+      deleteUserId: '',
+      async init() {
+        const res = await apiFetch('/users');
+        if (res.ok) this.users = await res.json();
+      },
+      async createUser() {
+        this.error = ''; this.success = '';
+        const res = await apiFetch('/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur création utilisateur.';
+          return;
+        }
+        const user = await res.json();
+        this.users.unshift(user);
+        this.success = `Utilisateur créé. ID: ${user.user_id}`;
+      }
+      ,
+      async updateUser() {
+        this.error = ''; this.success = '';
+        const { user_id, ...payload } = this.updateForm;
+        const cleaned = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== '' && v !== null));
+        const res = await apiFetch(`/users/${user_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleaned)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur mise à jour utilisateur.';
+          return;
+        }
+        const updated = await res.json();
+        this.users = this.users.map(u => u.user_id === updated.user_id ? updated : u);
+        this.success = `Utilisateur ${updated.user_id} mis à jour.`;
+      },
+      async deleteUser() {
+        this.error = ''; this.success = '';
+        const res = await apiFetch(`/users/${this.deleteUserId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur suppression utilisateur.';
+          return;
+        }
+        this.users = this.users.filter(u => u.user_id !== this.deleteUserId);
+        this.success = `Utilisateur ${this.deleteUserId} supprimé.`;
+        this.deleteUserId = '';
+      }
+    }
+  }
+</script>
+{% endblock %}

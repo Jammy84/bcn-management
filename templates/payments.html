@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="paymentsPage()" x-init="init(); requireAuth()">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">Paiements</h2>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6">
+    <h3 class="font-semibold mb-3">Enregistrer un paiement</h3>
+    <form @submit.prevent="createPayment" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <input type="number" x-model.number="form.vehicle_id" placeholder="ID véhicule" class="border rounded px-3 py-2" required />
+      <input type="number" x-model.number="form.amount" placeholder="Montant (optionnel)" class="border rounded px-3 py-2" />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Enregistrer</button>
+    </form>
+    <p class="text-sm text-gray-500 mt-2">Si le montant est vide, le taux du véhicule est utilisé.</p>
+    <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+  </div>
+
+  <div class="bg-white rounded shadow p-4">
+    <h3 class="font-semibold mb-3">Historique</h3>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2">ID</th>
+          <th>Véhicule</th>
+          <th>Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="p in payments" :key="p.id">
+          <tr class="border-t">
+            <td class="py-2" x-text="p.id"></td>
+            <td x-text="p.vehicle_id"></td>
+            <td x-text="p.amount"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function paymentsPage() {
+    return {
+      payments: [],
+      error: '',
+      form: { vehicle_id: '', amount: null },
+      async init() {
+        const res = await apiFetch('/payments');
+        if (res.ok) this.payments = await res.json();
+      },
+      async createPayment() {
+        this.error = '';
+        const res = await apiFetch('/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur paiement.';
+          return;
+        }
+        const p = await res.json();
+        this.payments.unshift(p);
+      }
+    }
+  }
+</script>
+{% endblock %}

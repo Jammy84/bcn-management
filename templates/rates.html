@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="ratesPage()" x-init="init(); requireAuth()">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">Taux de paiement</h2>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_rates')">
+    <h3 class="font-semibold mb-3">Définir un taux</h3>
+    <form @submit.prevent="saveRate" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <select x-model="form.vehicle_type" class="border rounded px-3 py-2" required>
+        <option value="">Type</option>
+        <option>Taxi</option>
+        <option>Taxi-bus</option>
+      </select>
+      <input type="number" x-model.number="form.amount" placeholder="Montant" class="border rounded px-3 py-2" required />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Enregistrer</button>
+    </form>
+    <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+  </div>
+
+  <div class="bg-white rounded shadow p-4">
+    <h3 class="font-semibold mb-3">Liste</h3>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2">ID</th>
+          <th>Type</th>
+          <th>Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="r in rates" :key="r.id">
+          <tr class="border-t">
+            <td class="py-2" x-text="r.id"></td>
+            <td x-text="r.vehicle_type"></td>
+            <td x-text="r.amount"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function ratesPage() {
+    return {
+      rates: [],
+      error: '',
+      form: { vehicle_type: '', amount: 0 },
+      async init() {
+        const res = await apiFetch('/payment-rates');
+        if (res.ok) this.rates = await res.json();
+      },
+      async saveRate() {
+        this.error = '';
+        const res = await apiFetch('/payment-rates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur taux.';
+          return;
+        }
+        const r = await res.json();
+        this.rates = [r, ...this.rates.filter(x => x.vehicle_type !== r.vehicle_type)];
+      }
+    }
+  }
+</script>
+{% endblock %}

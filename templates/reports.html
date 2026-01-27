@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="reportsPage()" x-init="init(); requireAuth()">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">Rapports PDF</h2>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6">
+    <h3 class="font-semibold mb-3">Générer un rapport</h3>
+    <form @submit.prevent="createReport" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <select x-model="form.report_type" class="border rounded px-3 py-2" required>
+        <option value="">Type</option>
+        <option>Journalier</option>
+        <option>Hebdomadaire</option>
+        <option>Mensuel</option>
+      </select>
+      <input type="date" x-model="form.period_start" class="border rounded px-3 py-2" required />
+      <input type="date" x-model="form.period_end" class="border rounded px-3 py-2" required />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Générer</button>
+    </form>
+    <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+  </div>
+
+  <div class="bg-white rounded shadow p-4">
+    <h3 class="font-semibold mb-3">Liste</h3>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2">ID</th>
+          <th>Type</th>
+          <th>Période</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="r in reports" :key="r.id">
+          <tr class="border-t">
+            <td class="py-2" x-text="r.id"></td>
+            <td x-text="r.report_type"></td>
+            <td x-text="r.period_start + ' → ' + r.period_end"></td>
+            <td>
+              <a :href="`/reports/${r.id}/download`" class="text-blue-600">Télécharger</a>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function reportsPage() {
+    return {
+      reports: [],
+      error: '',
+      form: { report_type: '', period_start: '', period_end: '' },
+      async init() {
+        const res = await apiFetch('/reports');
+        if (res.ok) this.reports = await res.json();
+      },
+      async createReport() {
+        this.error = '';
+        const res = await apiFetch('/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur rapport.';
+          return;
+        }
+        const r = await res.json();
+        this.reports.unshift(r);
+      }
+    }
+  }
+</script>
+{% endblock %}

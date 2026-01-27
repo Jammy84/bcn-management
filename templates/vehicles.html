@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="vehiclesPage()" x-init="init(); requireAuth()">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">Véhicules</h2>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_vehicles')">
+    <h3 class="font-semibold mb-3">Ajouter un véhicule</h3>
+    <form @submit.prevent="createVehicle" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <select x-model="form.vehicle_type" class="border rounded px-3 py-2" required>
+        <option value="">Type</option>
+        <option>Taxi</option>
+        <option>Taxi-bus</option>
+      </select>
+      <input x-model="form.plate_number" placeholder="Plaque (optionnel)" class="border rounded px-3 py-2" />
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Ajouter</button>
+    </form>
+    <p class="text-sm text-red-600 mt-3" x-text="error"></p>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_vehicles')">
+    <h3 class="font-semibold mb-3">Modifier un véhicule</h3>
+    <form @submit.prevent="updateVehicle" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <input type="number" x-model.number="updateForm.id" placeholder="ID véhicule" class="border rounded px-3 py-2" required />
+      <select x-model="updateForm.vehicle_type" class="border rounded px-3 py-2">
+        <option value="">Type</option>
+        <option>Taxi</option>
+        <option>Taxi-bus</option>
+      </select>
+      <input x-model="updateForm.plate_number" placeholder="Plaque" class="border rounded px-3 py-2" />
+      <select x-model="updateForm.active" class="border rounded px-3 py-2">
+        <option value="">Actif ?</option>
+        <option value="true">Oui</option>
+        <option value="false">Non</option>
+      </select>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded md:col-span-4">Mettre à jour</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mb-6" x-show="$store.auth.can('manage_vehicles')">
+    <h3 class="font-semibold mb-3">Supprimer un véhicule</h3>
+    <form @submit.prevent="deleteVehicle" class="flex gap-3">
+      <input type="number" x-model.number="deleteVehicleId" placeholder="ID véhicule" class="border rounded px-3 py-2 flex-1" required />
+      <button class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded shadow p-4">
+    <h3 class="font-semibold mb-3">Liste</h3>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500">
+          <th class="py-2">ID</th>
+          <th>Type</th>
+          <th>Plaque</th>
+          <th>Actif</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="v in vehicles" :key="v.id">
+          <tr class="border-t">
+            <td class="py-2" x-text="v.id"></td>
+            <td x-text="v.vehicle_type"></td>
+            <td x-text="v.plate_number || '-' "></td>
+            <td x-text="v.active ? 'Oui' : 'Non'"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function vehiclesPage() {
+    return {
+      vehicles: [],
+      error: '',
+      form: { vehicle_type: '', plate_number: '' },
+      updateForm: { id: '', vehicle_type: '', plate_number: '', active: '' },
+      deleteVehicleId: '',
+      async init() {
+        const res = await apiFetch('/vehicles');
+        if (res.ok) this.vehicles = await res.json();
+      },
+      async createVehicle() {
+        this.error = '';
+        const res = await apiFetch('/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur ajout véhicule.';
+          return;
+        }
+        const v = await res.json();
+        this.vehicles.unshift(v);
+      },
+      async updateVehicle() {
+        this.error = '';
+        const { id, ...payload } = this.updateForm;
+        if (payload.active === '') delete payload.active; else payload.active = payload.active === 'true';
+        const cleaned = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== '' && v !== null));
+        const res = await apiFetch(`/vehicles/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleaned)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur mise à jour véhicule.';
+          return;
+        }
+        const v = await res.json();
+        this.vehicles = this.vehicles.map(x => x.id === v.id ? v : x);
+      },
+      async deleteVehicle() {
+        this.error = '';
+        const res = await apiFetch(`/vehicles/${this.deleteVehicleId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json();
+          this.error = err.detail || 'Erreur suppression véhicule.';
+          return;
+        }
+        this.vehicles = this.vehicles.filter(v => v.id !== this.deleteVehicleId);
+        this.deleteVehicleId = '';
+      }
+    }
+  }
+</script>
+{% endblock %}

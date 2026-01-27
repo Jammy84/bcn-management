@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="dashboardPage()" x-init="init(); requireAuth()">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Total journalier</div>
+      <div class="text-2xl font-semibold" x-text="metrics.total_day"></div>
+    </div>
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Total hebdomadaire</div>
+      <div class="text-2xl font-semibold" x-text="metrics.total_week"></div>
+    </div>
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Total mensuel</div>
+      <div class="text-2xl font-semibold" x-text="metrics.total_month"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Taxis</div>
+      <div class="text-2xl font-semibold" x-text="metrics.taxi_count"></div>
+    </div>
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Taxis-bus</div>
+      <div class="text-2xl font-semibold" x-text="metrics.taxi_bus_count"></div>
+    </div>
+    <div class="bg-white rounded shadow p-4">
+      <div class="text-sm text-gray-500">Bénéfice entreprise (12%)</div>
+      <div class="text-2xl font-semibold" x-text="metrics.company_share"></div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 mt-6">
+    <canvas id="trendChart" height="100"></canvas>
+  </div>
+</div>
+
+<script>
+  function dashboardPage() {
+    return {
+      metrics: { total_day: 0, total_week: 0, total_month: 0, taxi_count: 0, taxi_bus_count: 0, company_share: 0 },
+      async init() {
+        const res = await apiFetch('/dashboard/metrics');
+        if (!res.ok) return;
+        this.metrics = await res.json();
+        const ctx = document.getElementById('trendChart');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: ['J-3', 'J-2', 'J-1', "Aujourd'hui"],
+            datasets: [{
+              label: 'Collecte',
+              data: [0, 0, 0, this.metrics.total_day],
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37,99,235,0.2)'
+            }]
+          }
+        });
+      }
+    }
+  }
+</script>
+{% endblock %}
