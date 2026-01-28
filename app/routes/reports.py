@@ -1,7 +1,7 @@
 from datetime import date
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
@@ -11,7 +11,7 @@ from app.models.payment import Payment
 from app.models.vehicle import Vehicle
 from app.models.report import Report
 from app.schemas.report import ReportCreate, ReportOut
-from app.services.pdf_service import generate_report_pdf
+from app.services.pdf_service import generate_report_pdf, upload_pdf_to_supabase
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -42,12 +42,13 @@ async def create_report(
         Path("static/images/logo.png"),
     )
 
+    report_public_url = upload_pdf_to_supabase(pdf_path, report_name)
     report = Report(
         report_type=report_in.report_type,
         period_start=report_in.period_start,
         period_end=report_in.period_end,
         created_by=current_user.id,
-        pdf_path=str(pdf_path),
+        pdf_path=report_public_url or str(pdf_path),
     )
     db.add(report)
     await db.commit()
@@ -76,4 +77,6 @@ async def download_report(
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    if report.pdf_path.startswith("http"):
+        return RedirectResponse(report.pdf_path)
     return FileResponse(report.pdf_path, filename=Path(report.pdf_path).name)

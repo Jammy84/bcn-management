@@ -1,7 +1,37 @@
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from supabase import Client, create_client
+from app.core.settings import settings
+
+
+@lru_cache(maxsize=1)
+def _get_supabase_client() -> Client | None:
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        return None
+    return create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+
+def upload_pdf_to_supabase(pdf_path: Path, object_name: str) -> str | None:
+    if not settings.supabase_storage_bucket:
+        return None
+    client = _get_supabase_client()
+    if client is None:
+        return None
+    storage_path = f"reports/{object_name}.pdf"
+    with pdf_path.open("rb") as file:
+        client.storage.from_(settings.supabase_storage_bucket).upload(
+            storage_path,
+            file,
+            {
+                "content-type": "application/pdf",
+                "upsert": "true",
+            },
+        )
+    public_url = client.storage.from_(settings.supabase_storage_bucket).get_public_url(storage_path)
+    return public_url
 
 
 def generate_report_pdf(
