@@ -69,3 +69,10 @@ POST /payment-rates
 ## Notes
 - Le logo doit être placé dans `static/images/logo.png`.
 - Les rapports PDF sont générés dans `reports/`.
+  
+## Auteur
+Saint-James MUKUWA
+
+---
+
+Bonne gestion
